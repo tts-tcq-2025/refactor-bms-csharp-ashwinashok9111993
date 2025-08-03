@@ -9,42 +9,84 @@ public record VitalSign(string Name, float Value, float MinLimit, float MaxLimit
     public string Status => IsInRange ? "Normal" : "Critical";
 }
 
-public record VitalSignResult(bool IsAllNormal, List<VitalSign> VitalSigns)
+public record VitalSignResult(bool IsAllNormal, List<VitalSign> VitalSigns, int Age)
 {
     public List<VitalSign> CriticalVitals => VitalSigns.Where(v => !v.IsInRange).ToList();
+    public string AgeGroup => GetAgeGroup(Age);
+    
+    private static string GetAgeGroup(int age) => age switch
+    {
+        < 1 when age >= 0 => "Newborn (0-12 months)",
+        >= 1 and <= 3 => "Child (1-3 years)",
+        >= 4 and <= 5 => "Child (3-5 years)", 
+        >= 6 and <= 10 => "Child (6-10 years)",
+        >= 11 and <= 14 => "Adolescent (11-14 years)",
+        >= 15 => "Adult (15+ years)",
+        _ => "Unknown"
+    };
 }
 
 // Pure functions for vital sign validation
 public static class VitalSignValidator
 {
-    // Vital sign limits as constants for easy modification
-    public static class Limits
+    // Age-based vital sign limits based on medical standards
+    public static class AgeLimits
     {
+        // Temperature limits remain consistent across all ages
         public static readonly (float Min, float Max) Temperature = (95f, 102f);
-        public static readonly (int Min, int Max) PulseRate = (60, 100);
+        
+        // SpO2 limits remain consistent across all ages  
         public static readonly (int Min, int Max) Spo2 = (90, 100);
+        
+        // Age-based pulse rate limits based on medical literature
+        public static (int Min, int Max) GetPulseRateLimits(int age) => age switch
+        {
+            < 1 when age >= 0 => (100, 160),        // Newborn (0-12 months)
+            >= 1 and <= 3 => (80, 130),             // Child (1-3 years)
+            >= 4 and <= 5 => (80, 120),             // Child (3-5 years)
+            >= 6 and <= 10 => (70, 110),            // Child (6-10 years)
+            >= 11 and <= 14 => (60, 105),           // Adolescent (11-14 years)
+            >= 15 => (60, 100),                     // Adult (15+ years)
+            _ => (60, 100)                          // Default to adult ranges
+        };
     }
 
-    public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2)
+    // Updated method to include age parameter
+    public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2, int age)
     {
+        var pulseRateLimits = AgeLimits.GetPulseRateLimits(age);
+        
         var vitals = new List<VitalSign>
         {
-            new("Temperature", temperature, Limits.Temperature.Min, Limits.Temperature.Max),
-            new("Pulse Rate", pulseRate, Limits.PulseRate.Min, Limits.PulseRate.Max),
-            new("Oxygen Saturation", spo2, Limits.Spo2.Min, Limits.Spo2.Max)
+            new("Temperature", temperature, AgeLimits.Temperature.Min, AgeLimits.Temperature.Max),
+            new("Pulse Rate", pulseRate, pulseRateLimits.Min, pulseRateLimits.Max),
+            new("Oxygen Saturation", spo2, AgeLimits.Spo2.Min, AgeLimits.Spo2.Max)
         };
 
-        return new VitalSignResult(vitals.All(v => v.IsInRange), vitals);
+        return new VitalSignResult(vitals.All(v => v.IsInRange), vitals, age);
     }
 
-    public static bool IsTemperatureOk(float temperature) =>
-        temperature >= Limits.Temperature.Min && temperature <= Limits.Temperature.Max;
+    // Backward compatibility method without age (assumes adult)
+    public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2)
+    {
+        return CheckVitals(temperature, pulseRate, spo2, 25); // Default to adult age
+    }
 
-    public static bool IsPulseRateOk(int pulseRate) =>
-        pulseRate >= Limits.PulseRate.Min && pulseRate <= Limits.PulseRate.Max;
+    // Age-aware individual validation methods
+    public static bool IsTemperatureOk(float temperature) =>
+        temperature >= AgeLimits.Temperature.Min && temperature <= AgeLimits.Temperature.Max;
+
+    public static bool IsPulseRateOk(int pulseRate, int age)
+    {
+        var limits = AgeLimits.GetPulseRateLimits(age);
+        return pulseRate >= limits.Min && pulseRate <= limits.Max;
+    }
+    
+    // Backward compatibility method without age (assumes adult)
+    public static bool IsPulseRateOk(int pulseRate) => IsPulseRateOk(pulseRate, 25);
 
     public static bool IsSpo2Ok(int spo2) =>
-        spo2 >= Limits.Spo2.Min && spo2 <= Limits.Spo2.Max;
+        spo2 >= AgeLimits.Spo2.Min && spo2 <= AgeLimits.Spo2.Max;
 }
 
 // I/O operations separated from pure functions
@@ -52,6 +94,8 @@ public static class VitalSignDisplay
 {
     public static void DisplayResult(VitalSignResult result)
     {
+        Console.WriteLine($"Patient Age: {result.Age} years ({result.AgeGroup})");
+        
         if (result.IsAllNormal)
         {
             DisplayNormalVitals(result.VitalSigns);
@@ -67,7 +111,7 @@ public static class VitalSignDisplay
         Console.WriteLine("Vitals received within normal range");
         foreach (var vital in vitals)
         {
-            Console.WriteLine($"{vital.Name}: {vital.Value}");
+            Console.WriteLine($"{vital.Name}: {vital.Value} (Normal range: {vital.MinLimit}-{vital.MaxLimit})");
         }
     }
 
@@ -75,7 +119,7 @@ public static class VitalSignDisplay
     {
         foreach (var vital in criticalVitals)
         {
-            DisplayCriticalAlert($"{vital.Name} critical! Value: {vital.Value}");
+            DisplayCriticalAlert($"{vital.Name} critical! Value: {vital.Value} (Normal range: {vital.MinLimit}-{vital.MaxLimit})");
         }
     }
 
@@ -92,13 +136,20 @@ public static class VitalSignDisplay
     }
 }
 
-// Main checker class with reduced complexity
+// Main checker class with reduced complexity and age support
 class Checker
 {
-    public static bool VitalsOk(float temperature, int pulseRate, int spo2)
+    // New age-aware method
+    public static bool VitalsOk(float temperature, int pulseRate, int spo2, int age)
     {
-        var result = VitalSignValidator.CheckVitals(temperature, pulseRate, spo2);
+        var result = VitalSignValidator.CheckVitals(temperature, pulseRate, spo2, age);
         VitalSignDisplay.DisplayResult(result);
         return result.IsAllNormal;
+    }
+    
+    // Backward compatibility method (assumes adult age)
+    public static bool VitalsOk(float temperature, int pulseRate, int spo2)
+    {
+        return VitalsOk(temperature, pulseRate, spo2, 25); // Default to adult age
     }
 }
