@@ -24,6 +24,17 @@ public class CheckerTests
 
 public class VitalSignValidatorTests
 {
+    // Helper method to reduce test duplication
+    private static void AssertAllVitalsNormal(VitalSignResult result, int expectedAge, string expectedAgeGroup)
+    {
+        Assert.True(result.IsAllNormal);
+        Assert.Equal(expectedAge, result.Age);
+        Assert.Equal(expectedAgeGroup, result.AgeGroup);
+        Assert.Equal(3, result.VitalSigns.Count);
+        Assert.All(result.VitalSigns, vital => Assert.True(vital.IsInRange));
+        Assert.Empty(result.CriticalVitals);
+    }
+
     [Theory]
     [InlineData(95f, true)]   // Lower boundary
     [InlineData(102f, true)]  // Upper boundary
@@ -65,26 +76,14 @@ public class VitalSignValidatorTests
     public void CheckVitals_AllNormal_Adult_ShouldReturnAllNormal()
     {
         var result = VitalSignValidator.CheckVitals(98.6f, 72, 95, 25);
-        
-        Assert.True(result.IsAllNormal);
-        Assert.Equal(25, result.Age);
-        Assert.Equal("Adult (15+ years)", result.AgeGroup);
-        Assert.Equal(3, result.VitalSigns.Count);
-        Assert.All(result.VitalSigns, vital => Assert.True(vital.IsInRange));
-        Assert.Empty(result.CriticalVitals);
+        AssertAllVitalsNormal(result, 25, "Adult (15+ years)");
     }
 
     [Fact]
     public void CheckVitals_AllNormal_Newborn_ShouldReturnAllNormal()
     {
         var result = VitalSignValidator.CheckVitals(98.6f, 130, 95, 0);
-        
-        Assert.True(result.IsAllNormal);
-        Assert.Equal(0, result.Age);
-        Assert.Equal("Newborn (0-12 months)", result.AgeGroup);
-        Assert.Equal(3, result.VitalSigns.Count);
-        Assert.All(result.VitalSigns, vital => Assert.True(vital.IsInRange));
-        Assert.Empty(result.CriticalVitals);
+        AssertAllVitalsNormal(result, 0, "Newborn (0-12 months)");
     }
 
     [Fact]
