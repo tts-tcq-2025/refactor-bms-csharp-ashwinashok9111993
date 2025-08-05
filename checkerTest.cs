@@ -4,14 +4,6 @@ using System.Collections.Generic;
 
 public class CheckerTests
 {
-    // Helper method to create mock output writer and capture output
-    private static (List<string> capturedOutput, OutputWriter mockWriter) CreateMockOutputWriter()
-    {
-        var capturedOutput = new List<string>();
-        OutputWriter mockWriter = message => capturedOutput.Add(message);
-        return (capturedOutput, mockWriter);
-    }
-
     [Fact]
     public void NotOkWhenAnyVitalIsOffRange()
     {
