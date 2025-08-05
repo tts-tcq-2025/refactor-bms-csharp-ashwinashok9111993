@@ -32,7 +32,7 @@ public class CheckerTests
     [Fact]
     public void CheckerWithMockOutput_ShouldCaptureOutput()
     {
-        var (capturedOutput, mockWriter) = CreateMockOutputWriter();
+        var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
 
         var result = Checker.VitalsOk(98.6f, 70, 95, 25, mockWriter);
 
@@ -45,7 +45,7 @@ public class CheckerTests
     [Fact]
     public void CheckerWithCriticalVitals_ShouldShowAlerts()
     {
-        var (capturedOutput, mockWriter) = CreateMockOutputWriter();
+        var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
 
         var result = Checker.VitalsOk(103f, 120, 85, 25, mockWriter);
 
@@ -58,14 +58,6 @@ public class CheckerTests
 
 public class VitalSignValidatorTests
 {
-    // Helper method to create mock output writer and capture output
-    private static (List<string> capturedOutput, OutputWriter mockWriter) CreateMockOutputWriter()
-    {
-        var capturedOutput = new List<string>();
-        OutputWriter mockWriter = message => capturedOutput.Add(message);
-        return (capturedOutput, mockWriter);
-    }
-
     // Helper method to reduce test duplication
     private static void AssertAllVitalsNormal(VitalSignResult result, int expectedAge, string expectedAgeGroup)
     {
@@ -191,7 +183,7 @@ public class VitalSignValidatorTests
     [Fact]
     public void VitalSignDisplay_WithMockOutput_ShouldCaptureAllMessages()
     {
-        var (capturedOutput, mockWriter) = CreateMockOutputWriter();
+        var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
         
         var result = VitalSignValidator.CheckVitals(98.6f, 90, 95, 5); // Normal values for child
         VitalSignDisplay.DisplayResult(result, mockWriter);
