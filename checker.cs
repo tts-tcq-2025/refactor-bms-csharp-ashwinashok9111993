@@ -33,35 +33,47 @@ public static class VitalSignValidator
         internal static readonly (int Min, int Max) Spo2 = (90, 100);
     }
 
-    // Dictionary-based age group mappings for better performance
-    private static readonly Dictionary<Func<int, bool>, string> AgeGroupMappings = new()
+    // Age group definitions with ranges for better performance and reduced complexity
+    private static readonly (int MinAge, int MaxAge, string Group)[] AgeGroupRanges = 
     {
-        { age => age >= 0 && age < 1, "Newborn (0-12 months)" },
-        { age => age >= 1 && age <= 3, "Child (1-3 years)" },
-        { age => age >= 4 && age <= 5, "Child (3-5 years)" },
-        { age => age >= 6 && age <= 10, "Child (6-10 years)" },
-        { age => age >= 11 && age <= 14, "Adolescent (11-14 years)" },
-        { age => age >= 15, "Adult (15+ years)" }
+        (0, 0, "Newborn (0-12 months)"),
+        (1, 3, "Child (1-3 years)"),
+        (4, 5, "Child (3-5 years)"),
+        (6, 10, "Child (6-10 years)"),
+        (11, 14, "Adolescent (11-14 years)"),
+        (15, int.MaxValue, "Adult (15+ years)")
     };
 
-    private static readonly Dictionary<Func<int, bool>, (int Min, int Max)> PulseRateMappings = new()
+    private static readonly (int MinAge, int MaxAge, int MinPulse, int MaxPulse)[] PulseRateRanges = 
     {
-        { age => age >= 0 && age < 1, (100, 160) },        // Newborn (0-12 months)
-        { age => age >= 1 && age <= 3, (80, 130) },        // Child (1-3 years)
-        { age => age >= 4 && age <= 5, (80, 120) },        // Child (3-5 years)
-        { age => age >= 6 && age <= 10, (70, 110) },       // Child (6-10 years)
-        { age => age >= 11 && age <= 14, (60, 105) },      // Adolescent (11-14 years)
-        { age => age >= 15, (60, 100) }                    // Adult (15+ years)
+        (0, 0, 100, 160),        // Newborn (0-12 months)
+        (1, 3, 80, 130),         // Child (1-3 years)
+        (4, 5, 80, 120),         // Child (3-5 years)
+        (6, 10, 70, 110),        // Child (6-10 years)
+        (11, 14, 60, 105),       // Adolescent (11-14 years)
+        (15, int.MaxValue, 60, 100)  // Adult (15+ years)
     };
 
-    // Default implementations using dictionary lookups
+    // Default implementations using simple array lookups with reduced complexity
     private static readonly AgeClassifier DefaultAgeClassifier = age =>
-        AgeGroupMappings.FirstOrDefault(mapping => mapping.Key(age)).Value ?? "Unknown";
+    {
+        foreach (var (minAge, maxAge, group) in AgeGroupRanges)
+        {
+            if (age >= minAge && age <= maxAge)
+                return group;
+        }
+        return "Unknown";
+    };
 
     private static readonly PulseRateLimitProvider DefaultPulseRateProvider = age =>
-        PulseRateMappings.FirstOrDefault(mapping => mapping.Key(age)).Value is var result && result != default 
-            ? result 
-            : (60, 100); // Default to adult ranges
+    {
+        foreach (var (minAge, maxAge, minPulse, maxPulse) in PulseRateRanges)
+        {
+            if (age >= minAge && age <= maxAge)
+                return (minPulse, maxPulse);
+        }
+        return (60, 100); // Default to adult ranges
+    };
 
     // Updated method to include age parameter with injectable delegates
     public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2, int age,
