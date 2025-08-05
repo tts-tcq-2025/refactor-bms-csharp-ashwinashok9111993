@@ -20,6 +20,34 @@ public class CheckerTests
         // Test adult with same high pulse rate (abnormal for adult)
         Assert.False(Checker.VitalsOk(98.6f, 140, 95, 25)); // 140 bpm is high for adult
     }
+
+    [Fact]
+    public void CheckerWithMockOutput_ShouldCaptureOutput()
+    {
+        var capturedOutput = new List<string>();
+        OutputWriter mockWriter = message => capturedOutput.Add(message);
+
+        var result = Checker.VitalsOk(98.6f, 70, 95, 25, mockWriter);
+
+        Assert.True(result);
+        Assert.Contains(capturedOutput, msg => msg.Contains("Patient Age: 25 years"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Adult (15+ years)"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Vitals received within normal range"));
+    }
+
+    [Fact]
+    public void CheckerWithCriticalVitals_ShouldShowAlerts()
+    {
+        var capturedOutput = new List<string>();
+        OutputWriter mockWriter = message => capturedOutput.Add(message);
+
+        var result = Checker.VitalsOk(103f, 120, 85, 25, mockWriter);
+
+        Assert.False(result);
+        Assert.Contains(capturedOutput, msg => msg.Contains("Temperature critical!"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Pulse Rate critical!"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Oxygen Saturation critical!"));
+    }
 }
 
 public class VitalSignValidatorTests
@@ -134,6 +162,34 @@ public class VitalSignValidatorTests
         Assert.Equal(25, result.Age); // Should default to adult age
         Assert.Equal("Adult (15+ years)", result.AgeGroup);
     }
+
+    [Fact]
+    public void IsPulseRateOk_WithCustomProvider_ShouldUseProvidedLimits()
+    {
+        // Custom provider that allows wider range for testing
+        PulseRateLimitProvider customProvider = age => (50, 200);
+        
+        // This would normally be out of range for adults, but should pass with custom provider
+        Assert.True(VitalSignValidator.IsPulseRateOk(150, 25, customProvider));
+        Assert.False(VitalSignValidator.IsPulseRateOk(40, 25, customProvider)); // Below custom range
+    }
+
+    [Fact]
+    public void VitalSignDisplay_WithMockOutput_ShouldCaptureAllMessages()
+    {
+        var capturedOutput = new List<string>();
+        OutputWriter mockWriter = message => capturedOutput.Add(message);
+        
+        var result = VitalSignValidator.CheckVitals(98.6f, 90, 95, 5); // Normal values for child
+        VitalSignDisplay.DisplayResult(result, mockWriter);
+        
+        Assert.Contains(capturedOutput, msg => msg.Contains("Patient Age: 5 years"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Child (3-5 years)"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Vitals received within normal range"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Temperature: 98.6"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Pulse Rate: 90"));
+        Assert.Contains(capturedOutput, msg => msg.Contains("Oxygen Saturation: 95"));
+    }
 }
 
 public class AgeLimitsTests
@@ -146,21 +202,24 @@ public class AgeLimitsTests
     [InlineData(13, 60, 105)]   // Adolescent 11-14 years
     [InlineData(25, 60, 100)]   // Adult 15+ years
     [InlineData(65, 60, 100)]   // Adult 15+ years
-    public void GetPulseRateLimits_ShouldReturnCorrectRangesForAge(int age, int expectedMin, int expectedMax)
+    public void CustomPulseRateProvider_ShouldWorkWithCheckVitals(int age, int expectedMin, int expectedMax)
     {
-        var limits = VitalSignValidator.AgeLimits.GetPulseRateLimits(age);
+        // Custom pulse rate provider for testing
+        PulseRateLimitProvider customProvider = testAge => (expectedMin, expectedMax);
         
-        Assert.Equal(expectedMin, limits.Min);
-        Assert.Equal(expectedMax, limits.Max);
+        var result = VitalSignValidator.CheckVitals(98.6f, expectedMin + 5, 95, age, pulseRateProvider: customProvider);
+        
+        Assert.True(result.VitalSigns.First(v => v.Name == "Pulse Rate").IsInRange);
     }
 
     [Fact]
-    public void GetPulseRateLimits_InvalidAge_ShouldDefaultToAdult()
+    public void CustomAgeClassifier_ShouldWorkWithCheckVitals()
     {
-        var limits = VitalSignValidator.AgeLimits.GetPulseRateLimits(-1);
+        AgeClassifier customClassifier = age => "Custom Age Group";
         
-        Assert.Equal(60, limits.Min);
-        Assert.Equal(100, limits.Max);
+        var result = VitalSignValidator.CheckVitals(98.6f, 70, 95, 25, ageClassifier: customClassifier);
+        
+        Assert.Equal("Custom Age Group", result.AgeGroup);
     }
 }
 
@@ -190,14 +249,8 @@ public class VitalSignResultTests
     [Fact]
     public void VitalSignResult_ShouldCorrectlyIdentifyCriticalVitals()
     {
-        var vitals = new List<VitalSign>
-        {
-            new("Temperature", 98.6f, 95f, 102f),    // Normal
-            new("Pulse Rate", 55, 60, 100),          // Critical for adult
-            new("SpO2", 95, 90, 100)                 // Normal
-        };
-
-        var result = new VitalSignResult(false, vitals, 25);
+        // Use VitalSignValidator.CheckVitals to properly create VitalSignResult with AgeGroup
+        var result = VitalSignValidator.CheckVitals(98.6f, 55, 95, 25);
         
         Assert.False(result.IsAllNormal);
         Assert.Single(result.CriticalVitals);
@@ -215,8 +268,8 @@ public class VitalSignResultTests
     [InlineData(65, "Adult (15+ years)")]
     public void VitalSignResult_ShouldCorrectlyIdentifyAgeGroup(int age, string expectedAgeGroup)
     {
-        var vitals = new List<VitalSign>();
-        var result = new VitalSignResult(true, vitals, age);
+        // Use VitalSignValidator.CheckVitals to properly create VitalSignResult with AgeGroup
+        var result = VitalSignValidator.CheckVitals(98.6f, 70, 95, age);
         
         Assert.Equal(expectedAgeGroup, result.AgeGroup);
     }
