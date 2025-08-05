@@ -398,3 +398,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+notes.md
+REFACTORING_SUMMARY.md
+CODE_CLONE_ELIMINATION.md
+COMPLEXITY_REDUCTION.md
