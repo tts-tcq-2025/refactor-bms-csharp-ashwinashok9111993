@@ -11,7 +11,7 @@ jobs:
       - name: Lint
         uses: JetBrains/ReSharper-InspectCode@v0.8
         with:
-          solution: ./checker.sln
+          solution: ./VitalSignChecker.sln
 
     permissions:
       security-events: write
