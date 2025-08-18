@@ -4,12 +4,32 @@ using System.Collections.Generic;
 
 public class ExtensionTests
 {
+    // Helper methods to reduce code duplication
+    private static void WithGermanLanguage(System.Action action)
+    {
+        var originalLanguage = LanguageProvider.CurrentLanguage;
+        try
+        {
+            LanguageProvider.CurrentLanguage = Language.German;
+            action();
+        }
+        finally
+        {
+            LanguageProvider.CurrentLanguage = originalLanguage;
+        }
+    }
+
+    private static VitalSign GetTemperatureVital(VitalSignResult result)
+    {
+        return result.VitalSigns.First(v => v.Name == "Temperature");
+    }
+
     // Extension 1: Early Warning Tests
     [Fact]
     public void EarlyWarning_ShouldDetectApproachingHypothermia()
     {
         var result = VitalSignValidator.CheckVitals(95.5f, 70, 98, 25); // Just above hypothermia threshold
-        var tempVital = result.VitalSigns.First(v => v.Name == "Temperature");
+        var tempVital = GetTemperatureVital(result);
         
         Assert.Equal(VitalStatus.NearHypo, tempVital.Status);
         Assert.Contains("hypothermia", tempVital.StatusMessage.ToLower());
@@ -19,7 +39,7 @@ public class ExtensionTests
     public void EarlyWarning_ShouldDetectApproachingHyperthermia()
     {
         var result = VitalSignValidator.CheckVitals(101.5f, 70, 98, 25); // Just below hyperthermia threshold
-        var tempVital = result.VitalSigns.First(v => v.Name == "Temperature");
+        var tempVital = GetTemperatureVital(result);
         
         Assert.Equal(VitalStatus.NearHyper, tempVital.Status);
         Assert.Contains("hyperthermia", tempVital.StatusMessage.ToLower());
@@ -29,7 +49,7 @@ public class ExtensionTests
     public void EarlyWarning_ShouldDetectNormalRange()
     {
         var result = VitalSignValidator.CheckVitals(98.6f, 70, 98, 25);
-        var tempVital = result.VitalSigns.First(v => v.Name == "Temperature");
+        var tempVital = GetTemperatureVital(result);
         
         Assert.Equal(VitalStatus.Normal, tempVital.Status);
     }
@@ -52,31 +72,28 @@ public class ExtensionTests
     [Fact]
     public void MultiLanguage_ShouldTranslateToGerman()
     {
-        LanguageProvider.CurrentLanguage = Language.German;
-        
-        var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
-        VitalSignChecker.VitalsOk(98.6f, 70, 98, 25, mockWriter);
+        WithGermanLanguage(() =>
+        {
+            var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
+            VitalSignChecker.VitalsOk(98.6f, 70, 98, 25, mockWriter);
 
-        Assert.Contains(capturedOutput, msg => msg.Contains("Patientenalter"));
-        Assert.Contains(capturedOutput, msg => msg.Contains("Jahre"));
-        Assert.Contains(capturedOutput, msg => msg.Contains("Erwachsener"));
-        
-        // Reset to English
-        LanguageProvider.CurrentLanguage = Language.English;
+            Assert.Contains(capturedOutput, msg => msg.Contains("Patientenalter"));
+            Assert.Contains(capturedOutput, msg => msg.Contains("Jahre"));
+            Assert.Contains(capturedOutput, msg => msg.Contains("Erwachsener"));
+        });
     }
 
     [Fact]
     public void MultiLanguage_ShouldTranslateWarningsToGerman()
     {
-        LanguageProvider.CurrentLanguage = Language.German;
-        
-        var result = VitalSignValidator.CheckVitals(101.5f, 70, 98, 25);
-        var tempVital = result.VitalSigns.First(v => v.Name == "Temperature");
-        
-        Assert.Contains("Warnung", tempVital.LocalizedStatusMessage);
-        Assert.Contains("Überhitzung", tempVital.LocalizedStatusMessage);
-        
-        LanguageProvider.CurrentLanguage = Language.English;
+        WithGermanLanguage(() =>
+        {
+            var result = VitalSignValidator.CheckVitals(101.5f, 70, 98, 25);
+            var tempVital = GetTemperatureVital(result);
+            
+            Assert.Contains("Warnung", tempVital.LocalizedStatusMessage);
+            Assert.Contains("Überhitzung", tempVital.LocalizedStatusMessage);
+        });
     }
 
     // Extension 3: Temperature Units Tests
@@ -85,7 +102,7 @@ public class ExtensionTests
     {
         var celsiusTemp = 37f; // 37°C = 98.6°F
         var result = VitalSignValidator.CheckVitals(celsiusTemp, 70, 98, 25, TemperatureUnit.Celsius);
-        var tempVital = result.VitalSigns.First(v => v.Name == "Temperature");
+        var tempVital = GetTemperatureVital(result);
         
         Assert.Equal(98.6f, tempVital.Value, 1); // Allow 1 degree tolerance for rounding
         Assert.True(result.IsAllNormal);
@@ -104,15 +121,15 @@ public class ExtensionTests
     [Fact]
     public void AllExtensions_IntegrationTest()
     {
-        LanguageProvider.CurrentLanguage = Language.German;
-        var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
-        
-        // Test temperature in Celsius that should trigger a warning
-        var result = VitalSignChecker.VitalsOk(38.5f, 70, 98, 25, mockWriter, TemperatureUnit.Celsius); // 38.5°C = 101.3°F
-        
-        Assert.True(result); // Should be ok but with warnings
-        Assert.Contains(capturedOutput, msg => msg.Contains("Patientenalter"));
-        
-        LanguageProvider.CurrentLanguage = Language.English;
+        WithGermanLanguage(() =>
+        {
+            var (capturedOutput, mockWriter) = TestHelpers.CreateMockOutputWriter();
+            
+            // Test temperature in Celsius that should trigger a warning
+            var result = VitalSignChecker.VitalsOk(38.5f, 70, 98, 25, mockWriter, TemperatureUnit.Celsius); // 38.5°C = 101.3°F
+            
+            Assert.True(result); // Should be ok but with warnings
+            Assert.Contains(capturedOutput, msg => msg.Contains("Patientenalter"));
+        });
     }
 }
