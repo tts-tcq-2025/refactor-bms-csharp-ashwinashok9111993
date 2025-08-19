@@ -59,11 +59,15 @@ public static class EnhancedVitalSignValidator
 
         var vitals = vitalValues.Select(kvp => factory.CreateVitalSign(kvp.Key, kvp.Value, age)).ToList();
         
-        return new VitalSignResult(vitals.All(v => v.IsInRange), vitals, age) 
-        { 
-            AgeGroup = ageClassifier(age) 
-        };
+        return VitalSignResultHelper.CreateResult(vitals, age, ageClassifier);
     }
+}
+
+// Helper class to eliminate VitalSignResult creation duplication
+public static class VitalSignResultHelper
+{
+    public static VitalSignResult CreateResult(List<VitalSign> vitals, int age, AgeClassifier ageClassifier) =>
+        new(vitals.All(v => v.IsInRange), vitals, age) { AgeGroup = ageClassifier(age) };
 }
 
 // Configuration-driven vital sign limits for future extensibility
@@ -71,20 +75,28 @@ public static class VitalSignConfiguration
 {
     private static readonly Dictionary<string, Dictionary<string, (float Min, float Max)>> AgeBasedLimits = new()
     {
-        [VitalSignConstants.AgeGroups.Newborn] = new()
-        {
-            [VitalSignConstants.Temperature] = (95f, 102f),
-            [VitalSignConstants.PulseRate] = (100f, 160f),
-            [VitalSignConstants.OxygenSaturation] = (90f, 100f)
-        },
-        [VitalSignConstants.AgeGroups.Adult] = new()
-        {
-            [VitalSignConstants.Temperature] = (95f, 102f),
-            [VitalSignConstants.PulseRate] = (60f, 100f),
-            [VitalSignConstants.OxygenSaturation] = (90f, 100f)
-        }
+        [VitalSignConstants.AgeGroups.Newborn] = CreateVitalSignLimits(
+            temperature: (95f, 102f),
+            pulseRate: (100f, 160f),
+            oxygenSaturation: (90f, 100f)
+        ),
+        [VitalSignConstants.AgeGroups.Adult] = CreateVitalSignLimits(
+            temperature: (95f, 102f),
+            pulseRate: (60f, 100f),
+            oxygenSaturation: (90f, 100f)
+        )
         // Additional age groups can be added here
     };
+
+    private static Dictionary<string, (float Min, float Max)> CreateVitalSignLimits(
+        (float Min, float Max) temperature,
+        (float Min, float Max) pulseRate,
+        (float Min, float Max) oxygenSaturation) => new()
+        {
+            [VitalSignConstants.Temperature] = temperature,
+            [VitalSignConstants.PulseRate] = pulseRate,
+            [VitalSignConstants.OxygenSaturation] = oxygenSaturation
+        };
 
     public static (float Min, float Max) GetLimitsForVitalSign(string vitalSignName, string ageGroup)
     {

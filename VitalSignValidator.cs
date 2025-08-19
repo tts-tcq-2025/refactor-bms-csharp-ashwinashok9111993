@@ -34,7 +34,7 @@ public static class VitalSignValidator
     }
 
     private static VitalSignResult CreateVitalSignResult(List<VitalSign> vitals, int age, AgeClassifier ageClassifier) =>
-        new(vitals.All(v => v.IsInRange), vitals, age) { AgeGroup = ageClassifier(age) };
+        VitalSignResultHelper.CreateResult(vitals, age, ageClassifier);
 
     // Backward compatibility method without age (assumes adult)
     public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2) =>
