@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-// Vital sign status enumeration and warning calculations
+// Vital sign status enumeration and warning calculations with centralized constants
 public enum VitalStatus
 {
     Normal,
@@ -11,29 +11,27 @@ public enum VitalStatus
 
 public static class WarningCalculator
 {
-    private const float WarningTolerance = 0.015f; // 1.5%
-    
-    // Dictionary for status messages based on VitalStatus
+    // Dictionary for status messages based on VitalStatus - using constants
     private static readonly Dictionary<VitalStatus, string> StatusMessageTemplates = new()
     {
-        { VitalStatus.Critical, "{0} critical!" },
-        { VitalStatus.Normal, "{0} normal" }
+        { VitalStatus.Critical, "{0} " + VitalSignConstants.Critical },
+        { VitalStatus.Normal, "{0} " + VitalSignConstants.Normal }
     };
     
-    // Dictionary for hypo warning messages by vital name
+    // Dictionary for hypo warning messages by vital name - using constants
     private static readonly Dictionary<string, string> HypoWarningMessages = new()
     {
-        { "temperature", "Warning: Approaching hypothermia" },
-        { "pulse rate", "Warning: Approaching bradycardia" },
-        { "oxygen saturation", "Warning: Approaching hypoxemia" }
+        { VitalSignConstants.Temperature.ToLower(), VitalSignConstants.WarningTemplates.ApproachingHypothermia },
+        { VitalSignConstants.PulseRate.ToLower(), VitalSignConstants.WarningTemplates.ApproachingBradycardia },
+        { VitalSignConstants.OxygenSaturation.ToLower(), VitalSignConstants.WarningTemplates.ApproachingHypoxemia }
     };
     
-    // Dictionary for hyper warning messages by vital name
+    // Dictionary for hyper warning messages by vital name - using constants
     private static readonly Dictionary<string, string> HyperWarningMessages = new()
     {
-        { "temperature", "Warning: Approaching hyperthermia" },
-        { "pulse rate", "Warning: Approaching tachycardia" },
-        { "oxygen saturation", "Warning: Approaching hyperoxemia" }
+        { VitalSignConstants.Temperature.ToLower(), VitalSignConstants.WarningTemplates.ApproachingHyperthermia },
+        { VitalSignConstants.PulseRate.ToLower(), VitalSignConstants.WarningTemplates.ApproachingTachycardia },
+        { VitalSignConstants.OxygenSaturation.ToLower(), VitalSignConstants.WarningTemplates.ApproachingHyperoxemia }
     };
     
     // Dictionary for status message handlers
@@ -58,8 +56,8 @@ public static class WarningCalculator
 
     private static VitalStatus GetWarningStatus(float value, float minLimit, float maxLimit)
     {
-        var upperTolerance = maxLimit * WarningTolerance;
-        var lowerTolerance = maxLimit * WarningTolerance;
+        var upperTolerance = maxLimit * MedicalThresholds.WarningTolerance;
+        var lowerTolerance = maxLimit * MedicalThresholds.WarningTolerance;
 
         if (IsInLowerWarningZone(value, minLimit, lowerTolerance))
             return VitalStatus.NearHypo;
@@ -80,7 +78,7 @@ public static class WarningCalculator
     {
         return StatusMessageHandlers.TryGetValue(status, out var handler)
             ? handler(vitalName)
-            : $"{vitalName} normal";
+            : $"{vitalName} {VitalSignConstants.Normal}";
     }
 
     private static string GetHypoWarningMessage(string vitalName)
@@ -88,7 +86,7 @@ public static class WarningCalculator
         var lowerVitalName = vitalName.ToLower();
         return HypoWarningMessages.TryGetValue(lowerVitalName, out var message)
             ? message
-            : $"Warning: {vitalName} approaching low limit";
+            : string.Format(VitalSignConstants.WarningTemplates.ApproachingLowLimit, vitalName);
     }
 
     private static string GetHyperWarningMessage(string vitalName)
@@ -96,6 +94,6 @@ public static class WarningCalculator
         var lowerVitalName = vitalName.ToLower();
         return HyperWarningMessages.TryGetValue(lowerVitalName, out var message)
             ? message
-            : $"Warning: {vitalName} approaching high limit";
+            : string.Format(VitalSignConstants.WarningTemplates.ApproachingHighLimit, vitalName);
     }
 }

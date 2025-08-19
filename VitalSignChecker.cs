@@ -20,5 +20,5 @@ class VitalSignChecker
     
     // Backward compatibility method (assumes adult age)
     public static bool VitalsOk(float temperature, int pulseRate, int spo2) =>
-        VitalsOk(temperature, pulseRate, spo2, 25); // Default to adult age
+        VitalsOk(temperature, pulseRate, spo2, MedicalThresholds.DefaultAdultAge);
 }

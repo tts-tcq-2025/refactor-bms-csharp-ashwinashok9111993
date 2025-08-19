@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-// Pure functions for vital sign validation
+// Pure functions for vital sign validation with extensible design
 public static class VitalSignValidator
 {
     // Updated method to include age parameter with injectable delegates and temperature unit support
@@ -10,7 +10,7 @@ public static class VitalSignValidator
         AgeClassifier? ageClassifier = null, PulseRateLimitProvider? pulseRateProvider = null)
     {
         var providers = GetProviders(ageClassifier, pulseRateProvider);
-        var temperatureInFahrenheit = UnitConverter.ConvertTemperatureToFahrenheit(temperature, temperatureUnit);
+        var temperatureInFahrenheit = TemperatureConverter.ToFahrenheit(temperature, temperatureUnit);
         var vitals = CreateVitalSigns(temperatureInFahrenheit, pulseRate, spo2, age, providers.pulseRateProvider);
         
         return CreateVitalSignResult(vitals, age, providers.ageClassifier);
@@ -27,9 +27,9 @@ public static class VitalSignValidator
         var pulseRateLimits = pulseRateProvider(age);
         return new List<VitalSign>
         {
-            new("Temperature", temperature, AgeLimits.Temperature.Min, AgeLimits.Temperature.Max),
-            new("Pulse Rate", pulseRate, pulseRateLimits.Min, pulseRateLimits.Max),
-            new("Oxygen Saturation", spo2, AgeLimits.Spo2.Min, AgeLimits.Spo2.Max)
+            new(VitalSignConstants.Temperature, temperature, AgeLimits.Temperature.Min, AgeLimits.Temperature.Max),
+            new(VitalSignConstants.PulseRate, pulseRate, pulseRateLimits.Min, pulseRateLimits.Max),
+            new(VitalSignConstants.OxygenSaturation, spo2, AgeLimits.Spo2.Min, AgeLimits.Spo2.Max)
         };
     }
 
@@ -38,7 +38,7 @@ public static class VitalSignValidator
 
     // Backward compatibility method without age (assumes adult)
     public static VitalSignResult CheckVitals(float temperature, int pulseRate, int spo2) =>
-        CheckVitals(temperature, pulseRate, spo2, 25); // Default to adult age
+        CheckVitals(temperature, pulseRate, spo2, MedicalThresholds.DefaultAdultAge);
 
     // Overload with temperature unit support
     public static VitalSignResult CheckVitals(TemperatureReading temperature, int pulseRate, int spo2, int age,
@@ -57,7 +57,7 @@ public static class VitalSignValidator
     }
     
     // Backward compatibility method without age (assumes adult)
-    public static bool IsPulseRateOk(int pulseRate) => IsPulseRateOk(pulseRate, 25);
+    public static bool IsPulseRateOk(int pulseRate) => IsPulseRateOk(pulseRate, MedicalThresholds.DefaultAdultAge);
 
     public static bool IsSpo2Ok(int spo2) =>
         spo2 >= AgeLimits.Spo2.Min && spo2 <= AgeLimits.Spo2.Max;

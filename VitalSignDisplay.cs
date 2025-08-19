@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-// I/O operations separated from pure functions with injectable output writer
+// I/O operations separated from pure functions with injectable output writer and constants
 public static class VitalSignDisplay
 {
     private static readonly OutputWriter DefaultOutputWriter = Console.WriteLine;
@@ -10,7 +10,7 @@ public static class VitalSignDisplay
     public static void DisplayResult(VitalSignResult result, OutputWriter? outputWriter = null)
     {
         outputWriter ??= DefaultOutputWriter;
-        outputWriter($"{LanguageProvider.Translate("Patient Age")}: {result.Age} {LanguageProvider.Translate("years")} ({result.LocalizedAgeGroup})");
+        outputWriter($"{LanguageProvider.Translate(VitalSignConstants.PatientAge)}: {result.Age} {LanguageProvider.Translate(VitalSignConstants.Years)} ({result.LocalizedAgeGroup})");
         
         if (result.IsAllNormal)
         {
@@ -27,14 +27,14 @@ public static class VitalSignDisplay
 
     private static void DisplayNormalVitals(List<VitalSign> vitals, OutputWriter outputWriter)
     {
-        outputWriter(LanguageProvider.Translate("Vitals received within normal range"));
+        outputWriter(LanguageProvider.Translate(VitalSignConstants.VitalsNormalRange));
         vitals.ForEach(vital => 
-            outputWriter($"{vital.LocalizedName}: {vital.Value} ({LanguageProvider.Translate("Normal range")}: {vital.MinLimit}-{vital.MaxLimit})"));
+            outputWriter($"{vital.LocalizedName}: {vital.Value} ({LanguageProvider.Translate(VitalSignConstants.NormalRange)}: {vital.MinLimit}-{vital.MaxLimit})"));
     }
 
     private static void DisplayCriticalVitals(List<VitalSign> criticalVitals, OutputWriter outputWriter) =>
         criticalVitals.ForEach(vital => 
-            DisplayCriticalAlert($"{vital.LocalizedName} {LanguageProvider.Translate("critical!")} {LanguageProvider.Translate("Value")}: {vital.Value} ({LanguageProvider.Translate("Normal range")}: {vital.MinLimit}-{vital.MaxLimit})", outputWriter));
+            DisplayCriticalAlert($"{vital.LocalizedName} {LanguageProvider.Translate(VitalSignConstants.Critical)} {LanguageProvider.Translate(VitalSignConstants.Value)}: {vital.Value} ({LanguageProvider.Translate(VitalSignConstants.NormalRange)}: {vital.MinLimit}-{vital.MaxLimit})", outputWriter));
 
     private static void DisplayWarnings(List<VitalSign> warningVitals, OutputWriter outputWriter) =>
         warningVitals.ForEach(vital => outputWriter(vital.LocalizedStatusMessage));
